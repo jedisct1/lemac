@@ -7,7 +7,7 @@ const AesEncryptCtx = crypto.core.aes.AesEncryptCtx(Aes128);
 
 // https://tosc.iacr.org/index.php/ToSC/article/view/11619/11111
 
-const LeMac = struct {
+pub const LeMac = struct {
     pub const key_len = 16;
     pub const nonce_len = 16;
     pub const tag_len = 16;
@@ -65,19 +65,15 @@ const LeMac = struct {
             const m1 = AesBlock.fromBytes(msg[i + 16 * 1 ..][0..16]);
             const m2 = AesBlock.fromBytes(msg[i + 16 * 2 ..][0..16]);
             const m3 = AesBlock.fromBytes(msg[i + 16 * 3 ..][0..16]);
-            x[0] = x[0].xorBlocks(x[8]);
-            inline for (1..9) |j| {
-                x[j] = x[j].xorBlocks(x[j - 1]);
-            }
-            x[0] = x[0].xorBlocks(m2);
-            x[1] = x[1].xorBlocks(m3);
-            x[2] = x[2].xorBlocks(m3);
-            x[3] = x[3].xorBlocks(r[1]).xorBlocks(r[2]);
-            x[4] = x[4].xorBlocks(m0);
-            x[5] = x[5].xorBlocks(m0);
-            x[6] = x[6].xorBlocks(m1);
-            x[7] = x[7].xorBlocks(m1);
-            x[8] = x[8].xorBlocks(m3);
+            x[8] = x[7].encrypt(m3);
+            x[7] = x[6].encrypt(m1);
+            x[6] = x[5].encrypt(m1);
+            x[5] = x[4].encrypt(m0);
+            x[4] = x[3].encrypt(m0);
+            x[3] = x[2].encrypt(r[1]).xorBlocks(r[2]);
+            x[2] = x[1].encrypt(m3);
+            x[1] = x[0].encrypt(m3);
+            x[0] = x[0].xorBlocks(x[8]).xorBlocks(m2);
             r[2] = r[1];
             r[1] = r[0].xorBlocks(m1);
             r[0] = m2;
@@ -91,19 +87,15 @@ const LeMac = struct {
             const m1 = AesBlock.fromBytes(pad[16 * 1 ..][0..16]);
             const m2 = AesBlock.fromBytes(pad[16 * 2 ..][0..16]);
             const m3 = AesBlock.fromBytes(pad[16 * 3 ..][0..16]);
-            x[0] = x[0].xorBlocks(x[8]);
-            inline for (1..9) |j| {
-                x[j] = x[j - 1].encrypt(zeroblock);
-            }
-            x[0] = x[0].xorBlocks(m2);
-            x[1] = x[1].xorBlocks(m3);
-            x[2] = x[2].xorBlocks(m3);
-            x[3] = x[3].xorBlocks(r[1]).xorBlocks(r[2]);
-            x[4] = x[4].xorBlocks(m0);
-            x[5] = x[5].xorBlocks(m0);
-            x[6] = x[6].xorBlocks(m1);
-            x[7] = x[7].xorBlocks(m1);
-            x[8] = x[8].xorBlocks(m3);
+            x[8] = x[7].encrypt(m3);
+            x[7] = x[6].encrypt(m1);
+            x[6] = x[5].encrypt(m1);
+            x[5] = x[4].encrypt(m0);
+            x[4] = x[3].encrypt(m0);
+            x[3] = x[2].encrypt(r[1]).xorBlocks(r[2]);
+            x[2] = x[1].encrypt(m3);
+            x[1] = x[0].encrypt(m3);
+            x[0] = x[0].xorBlocks(x[8]).xorBlocks(m2);
         }
 
         // Finalization
@@ -135,7 +127,7 @@ test {
     const key: [16]u8 = [_]u8{ 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c };
     const nonce: [16]u8 = [_]u8{0} ** 16;
     const msg = [_]u8{0x02} ** 100;
-    const expected_tag: [16]u8 = [_]u8{ 0x65, 0xa4, 0x5c, 0x05, 0x8e, 0xde, 0xa9, 0xfc, 0x67, 0xb1, 0xe6, 0x29, 0xa3, 0xb3, 0xff, 0x17 };
+    const expected_tag: [16]u8 = [_]u8{ 23, 86, 3, 142, 45, 158, 69, 233, 164, 91, 207, 10, 115, 137, 168, 95 };
     var st = LeMac.init(key);
     const tag: [16]u8 = st.mac(&msg, nonce);
     try std.testing.expectEqualSlices(u8, &expected_tag, &tag);
